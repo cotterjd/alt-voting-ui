@@ -12,24 +12,28 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import Hello from '../components/HelloWorld.vue'
-import series from 'promise.series'
 import * as R from 'ramda' // TODO: import these individually
 
+interface Data {
+  winner: string
+  votes: Record<string, string[]>
+  countObj: Record<string, number>
+  losers: string[]
+}
 export default {
   components: {
     Hello,
   },
-  data: () => ({
+  data: (): Data => ({
     winner: ``,
     votes: {},
     countObj: {},
     losers: [],
-    VoteString: ``,
   }),
   mounted () {
-    const initialVotes = {
+    const initialVotes: Record<string, string[]> = {
       joe: [`Republican`, `Democrat`, `Libertarian`, `Green Party`],
       paul: [`Green Party`, `Libertarian`, `Republican`, `Democrat`],
       dan: [`Republican`, `Libertarian`, `Democrat`, `Green Party`],
@@ -44,63 +48,54 @@ export default {
   computed: {},
   methods: {
     // TODO: fix not stopping after majority
-    calcVotes (votesObj) {
-      const topVotes = getTopVotes(votesObj)
-      const losers = getLowest(topVotes)
-      const newLosers = R.uniq([...this.losers, ...losers])
+    calcVotes (votesObj: Record<string, string[]>) {
+      const topVotes: string[] = getTopVotes(votesObj)
+      const losers: string[] = getLowest(topVotes)
+      const newLosers: string[] = R.uniq([...this.losers, ...losers])
       this.losers = newLosers
       return Object.keys(votesObj).reduce((acc, voter) => ({ ...acc, [voter]: getUpdatedVoterPicks(newLosers, votesObj[voter])}), {})
     },
     startVote () {
       if (!this.winner) {
-        const newVotes = this.calcVotes(this.votes)
+        const newVotes: Record<string, string[]> = this.calcVotes(this.votes)
         // TODO: clean this up
-        const topVotes = getTopVotes(newVotes)
-        const winner = getWinner(topVotes, topVotes.length)
+        const topVotes: string[] = getTopVotes(newVotes)
+        const winner: string = getWinner(topVotes, topVotes.length)
         if (winner) this.winner = winner
         this.votes = newVotes
         const countObj = getCountObj(newVotes)
         this.countObj = countObj
-      }
+      } 
     },
-    // {} -> `` 
   }
 }
-function getUpdatedVoterPicks (losers, voterPicks) {
+function getUpdatedVoterPicks (losers: string[], voterPicks: string[]): string[] {
   if (!losers.includes(voterPicks[0])) return voterPicks
   return getUpdatedVoterPicks(losers, voterPicks.slice(1))
 }
-// {} -> {} 
-function getCountObj (votesObj) {
-  // [``]
-  const topVotes = getTopVotes(votesObj)
-  // {}
-  const countObj = topVotes.reduce((acc, str) => {
+function getCountObj (votesObj: Record<string, string[]>): Record<string, number> {
+  const topVotes: string[] = getTopVotes(votesObj)
+  const countObj: Record<string, number> = topVotes.reduce((acc, str) => {
     if (acc[str]) return { ...acc, [str]: acc[str]+1 }
     return { ...acc, [str]: 1 }
   }, {})
   return countObj
 }
-// {} -> [``]
-function getTopVotes (votesObj) {
+function getTopVotes (votesObj: Record<string, string[]>): string[] {
   return Object.keys(votesObj).map(key => votesObj[key][0])
 }
-// [[``]] -> int -> ``
-export function getWinner (votes, totalVotes) {
-  const sortFunc = (a, b) => a === b ? -1 : 1 
-  // [[]]
-  const grouped = R.groupWith(R.equals, R.sort(sortFunc, votes))
-  const highest = grouped.reduce((high, supporters) => supporters.length > high.length ? supporters : high, grouped[0]) 
-  const lengthNeeded = Math.floor(totalVotes / 2 + 1)
+function sortFunc (a: string, b: string): number {
+  return a === b ? -1 : 1 
+}
+export function getWinner (votes: string[], totalVotes: number): string {
+  const grouped: string[][] = R.groupWith(R.equals, R.sort(sortFunc, votes))
+  const highest: string[] = grouped.reduce((high, supporters) => supporters.length > high.length ? supporters : high, grouped[0]) 
+  const lengthNeeded: number = Math.floor(totalVotes / 2 + 1)
   return highest?.length >= lengthNeeded ? highest?.[0] : ``
 }
-// [``] -> [] 
-function getLowest (votes) {
-  const sortFunc = (a, b) => a === b ? -1 : 1 
-  // [[]]
-  const grouped = R.groupWith(R.equals, R.sort(sortFunc, votes))
-  // [``]
-  const losers = R.flatten(grouped.reduce((acc, supporters) => {
+function getLowest (votes: string[]): string[] {
+  const grouped: string[][] = R.groupWith(R.equals, R.sort(sortFunc, votes))
+  const losers: string[] = R.flatten(grouped.reduce((acc, supporters) => {
     if (supporters.length === acc[0].length) return R.uniq([...acc, supporters])
     if (supporters.length < acc[0].length) return [supporters]
     return acc
